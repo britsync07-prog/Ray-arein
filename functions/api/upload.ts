@@ -5,33 +5,42 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const formData = await context.request.formData();
-    
-    // Debug: What keys did we get?
-    const keys = [...formData.keys()];
-    
-    // Find the first file-like object regardless of the key name
-    let imageFile: File | null = null;
-    for (const [key, value] of formData.entries()) {
-      if (typeof value !== 'string') {
-        imageFile = value as unknown as File;
-        break;
-      }
-    }
+    const image = formData.get('image');
 
-    if (!imageFile) {
+    if (!image) {
       return Response.json({ 
-        error: "No binary file detected in the request.",
-        receivedKeys: keys,
-        contentType: context.request.headers.get("content-type")
+        error: "Key 'image' not found in FormData.",
+        availableKeys: [...formData.keys()]
       }, { status: 400 });
     }
 
-    const filename = `${crypto.randomUUID()}-${imageFile.name || 'upload.jpg'}`;
-    
+    // In some environments, the file might be treated as a string or a Blob
+    // We need to ensure we have something we can turn into an ArrayBuffer
+    let buffer: ArrayBuffer;
+    let contentType: string = 'image/jpeg';
+    let filename: string = `upload-${Date.now()}.jpg`;
+
+    if (typeof image === 'string') {
+        return Response.json({ 
+            error: "Received string instead of binary file. Ensure you are sending a File object.",
+            stringPreview: image.substring(0, 100)
+          }, { status: 400 });
+    } else {
+        // It's a File or Blob
+        const file = image as unknown as File;
+        buffer = await file.arrayBuffer();
+        contentType = file.type || 'image/jpeg';
+        filename = `${crypto.randomUUID()}-${file.name || 'image.jpg'}`;
+    }
+
+    if (buffer.byteLength === 0) {
+        return Response.json({ error: "Received an empty file." }, { status: 400 });
+    }
+
     // Upload to R2
-    await context.env.BUCKET.put(filename, await imageFile.arrayBuffer(), {
+    await context.env.BUCKET.put(filename, buffer, {
       httpMetadata: {
-        contentType: imageFile.type || 'image/jpeg',
+        contentType: contentType,
       }
     });
 

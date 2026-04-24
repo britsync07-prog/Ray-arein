@@ -50,13 +50,39 @@ const ProductDetail = ({ id }: { id: string }) => {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="aspect-[3/4] bg-zinc-100 overflow-hidden relative"
+              className="aspect-[3/4] bg-zinc-100 overflow-hidden relative group"
             >
               <img 
                 src={activeImage} 
                 alt={product.name} 
                 className="w-full h-full object-cover object-center"
               />
+              
+              {/* Navigation Arrows */}
+              {images.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => {
+                      const idx = images.indexOf(activeImage);
+                      const nextIdx = (idx - 1 + images.length) % images.length;
+                      setActiveImage(images[nextIdx]);
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const idx = images.indexOf(activeImage);
+                      const nextIdx = (idx + 1) % images.length;
+                      setActiveImage(images[nextIdx]);
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
             </motion.div>
             
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">

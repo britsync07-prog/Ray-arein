@@ -1,0 +1,7 @@
+name = "ray-arein"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ray-arein-db"
+database_id = "d36805ec-bb01-4e40-a60d-2d2009ab5a2b"

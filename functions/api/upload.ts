@@ -5,27 +5,37 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const formData = await context.request.formData();
-    const imageFile = formData.get('image');
-
-    if (!imageFile || typeof imageFile === 'string') {
-      return Response.json({ error: "No image file provided" }, { status: 400 });
+    
+    // Debug: What keys did we get?
+    const keys = [...formData.keys()];
+    
+    // Find the first file-like object regardless of the key name
+    let imageFile: File | null = null;
+    for (const [key, value] of formData.entries()) {
+      if (typeof value !== 'string') {
+        imageFile = value as unknown as File;
+        break;
+      }
     }
 
-    const file = imageFile as unknown as File;
-    const filename = `${crypto.randomUUID()}-${file.name}`;
+    if (!imageFile) {
+      return Response.json({ 
+        error: "No binary file detected in the request.",
+        receivedKeys: keys,
+        contentType: context.request.headers.get("content-type")
+      }, { status: 400 });
+    }
+
+    const filename = `${crypto.randomUUID()}-${imageFile.name || 'upload.jpg'}`;
     
     // Upload to R2
-    await context.env.BUCKET.put(filename, await file.arrayBuffer(), {
+    await context.env.BUCKET.put(filename, await imageFile.arrayBuffer(), {
       httpMetadata: {
-        contentType: file.type,
+        contentType: imageFile.type || 'image/jpeg',
       }
     });
 
-    // The URL for the file (assuming you have set up a custom domain or use the default R2 subdomain)
-    // For Cloudflare Pages, the simplest way is to create another API route to SERVE the file or 
-    // connect a custom domain to your R2 bucket.
     const url = `/api/upload?key=${filename}`;
-
     return Response.json({ url });
   } catch (err: any) {
     console.error("R2 Upload Error:", err);

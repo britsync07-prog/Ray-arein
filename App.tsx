@@ -7,6 +7,7 @@ import About from './components/About';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
 import Admin from './components/Admin';
+import ProductDetail from './components/ProductDetail';
 
 function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -20,8 +21,16 @@ function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  if (path.replace(/\/$/, '') === '/admin') {
+  // Simple Router
+  const normalizedPath = path.replace(/\/$/, '');
+  
+  if (normalizedPath === '/admin') {
     return <Admin />;
+  }
+
+  if (normalizedPath.startsWith('/product/')) {
+    const id = normalizedPath.split('/').pop() || '';
+    return <ProductDetail id={id} />;
   }
 
   return (

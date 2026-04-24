@@ -16,6 +16,12 @@ const Navbar = () => {
 
   const scrollTo = (id: string) => {
     setIsMobileMenuOpen(false);
+    
+    if (window.location.pathname !== '/') {
+      window.location.href = `/#${id}`;
+      return;
+    }
+
     const element = document.getElementById(id);
     if (!element && id === 'hero') {
       window.scrollTo({ top: 0, behavior: 'smooth' });

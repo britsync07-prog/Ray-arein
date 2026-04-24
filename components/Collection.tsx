@@ -18,6 +18,11 @@ const Collection = () => {
       });
   }, []);
 
+  const navigateToProduct = (id: number) => {
+    window.history.pushState({}, '', `/product/${id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   if (loading) {
       return (
           <section className="py-32 text-center">
@@ -48,6 +53,7 @@ const Collection = () => {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
             className="group cursor-pointer"
+            onClick={() => navigateToProduct(product.id)}
           >
             <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100 mb-6">
               <img 
@@ -64,7 +70,11 @@ const Collection = () => {
             </div>
             <div className="flex justify-between items-center px-1">
               <h3 className="font-serif text-lg text-zinc-900">{product.name}</h3>
-              <p className="text-zinc-500 text-sm">{product.price}</p>
+              <p className="text-zinc-500 text-sm">
+                {product.price.includes('৳') || product.price.startsWith('$') 
+                  ? product.price.replace('$', '৳') 
+                  : `৳${product.price}`}
+              </p>
             </div>
           </motion.div>
         ))}

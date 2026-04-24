@@ -52,7 +52,13 @@ const Featured = () => {
               <p className="text-zinc-600 leading-relaxed mb-10 text-lg font-light">
                 {feature.description}
               </p>
-              <button className="group relative inline-flex items-center gap-4 text-sm tracking-widest uppercase pb-2">
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('collection');
+                  if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+                }}
+                className="group relative inline-flex items-center gap-4 text-sm tracking-widest uppercase pb-2"
+              >
                 <span className="relative z-10 font-medium">Discover</span>
                 <div className="absolute bottom-0 left-0 w-full h-[1px] bg-zinc-300">
                   <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-black transition-all duration-300 group-hover:w-full"></div>

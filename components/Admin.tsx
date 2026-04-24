@@ -40,13 +40,18 @@ const Admin = () => {
         body: formData
       });
       
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Server error: ${res.status}`);
+      }
+
       const data = await res.json();
       if (data.url) {
         setNewItem(prev => ({ ...prev, image: data.url }));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload failed", err);
-      alert("Image upload failed");
+      alert(`Image upload failed: ${err.message}`);
     } finally {
       setUploading(false);
     }

@@ -16,6 +16,42 @@ const Admin = () => {
     image: ''
   });
 
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState('');
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Show local preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await res.json();
+      if (data.url) {
+        setNewItem(prev => ({ ...prev, image: data.url }));
+      }
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const checkAuth = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);

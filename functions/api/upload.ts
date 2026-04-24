@@ -4,43 +4,45 @@ interface Env {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const formData = await context.request.formData();
-    const image = formData.get('image');
-
-    if (!image) {
-      return Response.json({ 
-        error: "Key 'image' not found in FormData.",
-        availableKeys: [...formData.keys()]
-      }, { status: 400 });
-    }
-
-    // In some environments, the file might be treated as a string or a Blob
-    // We need to ensure we have something we can turn into an ArrayBuffer
+    const contentType = context.request.headers.get("content-type") || "";
+    
     let buffer: ArrayBuffer;
-    let contentType: string = 'image/jpeg';
-    let filename: string = `upload-${Date.now()}.jpg`;
+    let filename: string;
+    let fileType: string;
 
-    if (typeof image === 'string') {
+    if (contentType.includes("multipart/form-data")) {
+      // Handle traditional FormData
+      const formData = await context.request.formData();
+      const image = formData.get('image');
+
+      if (!image || typeof image === 'string') {
         return Response.json({ 
-            error: "Received string instead of binary file. Ensure you are sending a File object.",
-            stringPreview: image.substring(0, 100)
-          }, { status: 400 });
+          error: "No binary file detected in FormData. Try direct binary upload.",
+          type: typeof image
+        }, { status: 400 });
+      }
+
+      const file = image as unknown as File;
+      buffer = await file.arrayBuffer();
+      fileType = file.type || 'image/jpeg';
+      filename = `${crypto.randomUUID()}-${file.name || 'image.jpg'}`;
     } else {
-        // It's a File or Blob
-        const file = image as unknown as File;
-        buffer = await file.arrayBuffer();
-        contentType = file.type || 'image/jpeg';
-        filename = `${crypto.randomUUID()}-${file.name || 'image.jpg'}`;
+      // Handle Direct Binary Upload (more robust)
+      buffer = await context.request.arrayBuffer();
+      const xFilename = context.request.headers.get("X-Filename");
+      filename = xFilename ? decodeURIComponent(xFilename) : `upload-${Date.now()}.jpg`;
+      filename = `${crypto.randomUUID()}-${filename}`;
+      fileType = contentType || 'image/jpeg';
     }
 
     if (buffer.byteLength === 0) {
-        return Response.json({ error: "Received an empty file." }, { status: 400 });
+      return Response.json({ error: "Received an empty file." }, { status: 400 });
     }
 
     // Upload to R2
     await context.env.BUCKET.put(filename, buffer, {
       httpMetadata: {
-        contentType: contentType,
+        contentType: fileType,
       }
     });
 

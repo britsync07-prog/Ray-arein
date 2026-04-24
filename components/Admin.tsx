@@ -31,18 +31,21 @@ const Admin = () => {
     reader.readAsDataURL(file);
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append('image', file);
-
+    
     try {
+      // Direct binary upload is more robust than FormData in some serverless environments
       const res = await fetch('/api/upload', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': file.type,
+          'X-Filename': encodeURIComponent(file.name)
+        },
+        body: file // Send raw binary
       });
       
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Server error: ${res.status}`);
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Server error: ${res.status}`);
       }
 
       const data = await res.json();

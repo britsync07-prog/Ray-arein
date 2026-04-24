@@ -20,7 +20,7 @@ function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  if (path === '/admin') {
+  if (path.replace(/\/$/, '') === '/admin') {
     return <Admin />;
   }
 

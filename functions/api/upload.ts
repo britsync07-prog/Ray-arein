@@ -5,18 +5,19 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const formData = await context.request.formData();
-    const imageFile = formData.get('image') as File;
+    const imageFile = formData.get('image');
 
-    if (!imageFile) {
+    if (!imageFile || typeof imageFile === 'string') {
       return Response.json({ error: "No image file provided" }, { status: 400 });
     }
 
-    const filename = `${crypto.randomUUID()}-${imageFile.name}`;
+    const file = imageFile as unknown as File;
+    const filename = `${crypto.randomUUID()}-${file.name}`;
     
     // Upload to R2
-    await context.env.BUCKET.put(filename, imageFile.stream(), {
+    await context.env.BUCKET.put(filename, await file.arrayBuffer(), {
       httpMetadata: {
-        contentType: imageFile.type,
+        contentType: file.type,
       }
     });
 

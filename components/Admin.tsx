@@ -15,7 +15,11 @@ const Admin = () => {
     price: '',
     description: '',
     image: '', // Primary
-    images: [] as string[] // Gallery
+    images: [] as string[], // Gallery
+    style: [] as string[],
+    fabrics: [] as string[],
+    type: '',
+    stitchType: ''
   });
 
   const [uploading, setUploading] = useState(false);
@@ -89,7 +93,7 @@ const Admin = () => {
         body: JSON.stringify(newItem)
       });
       if (res.ok) {
-        setNewItem({ name: '', price: '', description: '', image: '', images: [] });
+        setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
         setEditingId(null);
         fetchCollections();
       }
@@ -109,14 +113,18 @@ const Admin = () => {
         price: item.price.replace('৳', ''),
         description: item.description || '',
         image: item.image,
-        images: gallery
+        images: gallery,
+        style: item.style || [],
+        fabrics: item.fabrics || [],
+        type: item.type || '',
+        stitchType: item.stitchType || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setNewItem({ name: '', price: '', description: '', image: '', images: [] });
+    setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
   };
 
   const handleDeleteItem = async (id: number) => {
@@ -226,6 +234,82 @@ const Admin = () => {
                 </div>
 
                 <textarea placeholder="Description (all details here)" className="w-full px-4 py-2 border border-zinc-200 focus:outline-none focus:border-black h-32 text-sm leading-relaxed" value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} />
+
+                <div className="space-y-4 pt-2 border-t border-zinc-100">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Style</label>
+                            {['Original Pakistani', 'Inspired Pakistani'].map(s => (
+                                <label key={s} className="flex items-center gap-2 text-sm cursor-pointer group">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={newItem.style.includes(s)}
+                                        onChange={() => {
+                                            const next = newItem.style.includes(s) 
+                                                ? newItem.style.filter(v => v !== s)
+                                                : [...newItem.style, s];
+                                            setNewItem({...newItem, style: next});
+                                        }}
+                                        className="sr-only"
+                                    />
+                                    <div className={`w-4 h-4 border ${newItem.style.includes(s) ? 'bg-black border-black' : 'border-zinc-200 group-hover:border-black'} transition-colors flex items-center justify-center`}>
+                                        {newItem.style.includes(s) && <Plus size={10} className="text-white rotate-45" />}
+                                    </div>
+                                    <span className="text-zinc-600 group-hover:text-black transition-colors">{s}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Fabric</label>
+                            {['Organza', 'Chiffon', 'Cotton'].map(f => (
+                                <label key={f} className="flex items-center gap-2 text-sm cursor-pointer group">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={newItem.fabrics.includes(f)}
+                                        onChange={() => {
+                                            const next = newItem.fabrics.includes(f) 
+                                                ? newItem.fabrics.filter(v => v !== f)
+                                                : [...newItem.fabrics, f];
+                                            setNewItem({...newItem, fabrics: next});
+                                        }}
+                                        className="sr-only"
+                                    />
+                                    <div className={`w-4 h-4 border ${newItem.fabrics.includes(f) ? 'bg-black border-black' : 'border-zinc-200 group-hover:border-black'} transition-colors flex items-center justify-center`}>
+                                        {newItem.fabrics.includes(f) && <Plus size={10} className="text-white rotate-45" />}
+                                    </div>
+                                    <span className="text-zinc-600 group-hover:text-black transition-colors">{f}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Type</label>
+                            <select 
+                                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:border-black bg-white"
+                                value={newItem.type}
+                                onChange={e => setNewItem({...newItem, type: e.target.value})}
+                            >
+                                <option value="">Select Type</option>
+                                <option value="Gown">Gown</option>
+                                <option value="Kamiz">Kamiz</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Stitch</label>
+                            <select 
+                                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:border-black bg-white"
+                                value={newItem.stitchType}
+                                onChange={e => setNewItem({...newItem, stitchType: e.target.value})}
+                            >
+                                <option value="">Select Stitch</option>
+                                <option value="Ready Made">Ready Made</option>
+                                <option value="Unstitched">Unstitched</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <button disabled={uploading || !newItem.image} className="w-full bg-black text-white py-3 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 disabled:bg-zinc-300">
                   {editingId ? <Edit3 size={18} /> : <Plus size={18} />} 
                   {uploading ? 'Uploading...' : (editingId ? 'Update Product' : 'Add Product')}

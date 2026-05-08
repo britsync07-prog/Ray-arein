@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import { MOCK_PRODUCTS } from '../mockData';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -11,23 +12,16 @@ const ProductDetail = ({ id }: { id: string }) => {
   const [images, setImages] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch(`/api/collections?id=${id}`)
-      .then(res => res.json())
-      .then(data => {
-        setProduct(data);
-        setActiveImage(data.image);
-        try {
-            setImages(JSON.parse(data.images || "[]"));
-        } catch(e) {
-            setImages([data.image]);
-        }
-        setLoading(false);
-        window.scrollTo(0, 0);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    const foundProduct = MOCK_PRODUCTS.find(p => p.id === id);
+    if (foundProduct) {
+      setProduct(foundProduct);
+      setActiveImage(foundProduct.image);
+      setImages(foundProduct.images || [foundProduct.image]);
+      setLoading(false);
+      window.scrollTo(0, 0);
+    } else {
+      setLoading(false);
+    }
   }, [id]);
 
   if (loading) return (

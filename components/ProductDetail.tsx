@@ -5,6 +5,13 @@ import { MOCK_PRODUCTS } from '../mockData';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
+// Safe price formatter — handles number OR pre-formatted string from DB
+const formatPrice = (price: any): string => {
+  if (typeof price === 'string' && price.includes('৳')) return price;
+  const num = Number(price);
+  return isNaN(num) ? String(price) : `৳${num.toLocaleString()}`;
+};
+
 const ProductDetail = ({ id }: { id: string }) => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -19,23 +26,21 @@ const ProductDetail = ({ id }: { id: string }) => {
         setProduct(data);
         setActiveImage(data.image);
         try {
-            // Handle both JSON string and already parsed array
-            const gallery = typeof data.images === 'string' ? JSON.parse(data.images) : data.images;
-            setImages(Array.isArray(gallery) ? gallery : [data.image]);
-        } catch(e) {
-            setImages([data.image]);
+          const gallery = typeof data.images === 'string' ? JSON.parse(data.images) : data.images;
+          setImages(Array.isArray(gallery) && gallery.length > 0 ? gallery : [data.image]);
+        } catch {
+          setImages([data.image]);
         }
         setLoading(false);
         window.scrollTo(0, 0);
       })
-      .catch(err => {
-        console.error(err);
-        // Fallback to mock data for demo consistency
+      .catch(() => {
+        // Fallback to mock data if API unavailable
         const found = MOCK_PRODUCTS.find(p => p.id === id);
         if (found) {
-            setProduct(found);
-            setActiveImage(found.image);
-            setImages(found.images || [found.image]);
+          setProduct(found);
+          setActiveImage(found.image);
+          setImages(Array.isArray(found.images) && found.images.length > 0 ? found.images : [found.image]);
         }
         setLoading(false);
       });
@@ -43,13 +48,20 @@ const ProductDetail = ({ id }: { id: string }) => {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse font-serif text-2xl text-zinc-300">Ray Arein</div>
+      <div className="animate-pulse font-serif text-2xl text-zinc-300">Ray Arein</div>
     </div>
   );
 
-  if (!product) return <div className="p-20 text-center">Product not found</div>;
+  if (!product) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <p className="font-serif text-2xl text-zinc-400 mb-4">Product not found</p>
+        <a href="/" className="text-sm underline text-zinc-500 hover:text-black">Back to Collection</a>
+      </div>
+    </div>
+  );
 
-  const priceStr = product.price.includes('৳') ? product.price : `৳${product.price}`;
+  const priceStr = formatPrice(product.price);
 
   return (
     <div className="min-h-screen bg-white">
@@ -58,35 +70,33 @@ const ProductDetail = ({ id }: { id: string }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           {/* Gallery */}
           <div className="space-y-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="aspect-[3/4] bg-zinc-100 overflow-hidden relative group"
             >
-              <img 
-                src={activeImage} 
-                alt={product.name} 
+              <img
+                src={activeImage}
+                alt={product.name}
                 className="w-full h-full object-cover object-center"
               />
-              
-              {/* Navigation Arrows */}
+
+              {/* Navigation Arrows — only show if multiple images */}
               {images.length > 1 && (
                 <>
-                  <button 
+                  <button
                     onClick={() => {
                       const idx = images.indexOf(activeImage);
-                      const nextIdx = (idx - 1 + images.length) % images.length;
-                      setActiveImage(images[nextIdx]);
+                      setActiveImage(images[(idx - 1 + images.length) % images.length]);
                     }}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
                   >
                     <ChevronLeft size={20} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       const idx = images.indexOf(activeImage);
-                      const nextIdx = (idx + 1) % images.length;
-                      setActiveImage(images[nextIdx]);
+                      setActiveImage(images[(idx + 1) % images.length]);
                     }}
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
                   >
@@ -95,21 +105,24 @@ const ProductDetail = ({ id }: { id: string }) => {
                 </>
               )}
             </motion.div>
-            
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-              {images.map((img, i) => (
-                <button 
-                  key={i}
-                  onClick={() => setActiveImage(img)}
-                  className={`flex-shrink-0 w-20 aspect-[3/4] bg-zinc-100 border-2 transition-colors ${activeImage === img ? 'border-black' : 'border-transparent'}`}
-                >
-                  <img src={img} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
+
+            {/* Thumbnail strip */}
+            {images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImage(img)}
+                    className={`flex-shrink-0 w-20 aspect-[3/4] bg-zinc-100 border-2 transition-colors ${activeImage === img ? 'border-black' : 'border-transparent hover:border-zinc-300'}`}
+                  >
+                    <img src={img} className="w-full h-full object-cover" alt={`View ${i + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Info */}
+          {/* Product Info */}
           <div className="flex flex-col justify-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -117,20 +130,35 @@ const ProductDetail = ({ id }: { id: string }) => {
               transition={{ duration: 0.6 }}
             >
               <nav className="flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-400 mb-8">
-                <a href="/" className="hover:text-black">Home</a>
+                <a href="/" className="hover:text-black transition-colors">Home</a>
                 <span>/</span>
                 <span className="text-zinc-900">Collection</span>
               </nav>
 
               <h1 className="text-4xl md:text-5xl font-serif text-zinc-900 mb-4">{product.name}</h1>
               <p className="text-2xl text-zinc-500 font-light mb-8">{priceStr}</p>
-              
+
+              {/* Category tags */}
+              {(product.fabrics || product.type || product.stitchType) && (
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {Array.isArray(product.fabrics) && product.fabrics.map((f: string) => (
+                    <span key={f} className="px-3 py-1 text-xs uppercase tracking-widest border border-zinc-200 text-zinc-500">{f}</span>
+                  ))}
+                  {product.type && (
+                    <span className="px-3 py-1 text-xs uppercase tracking-widest border border-zinc-200 text-zinc-500">{product.type}</span>
+                  )}
+                  {product.stitchType && (
+                    <span className="px-3 py-1 text-xs uppercase tracking-widest border border-zinc-200 text-zinc-500">{product.stitchType}</span>
+                  )}
+                </div>
+              )}
+
               <div className="w-full h-[1px] bg-zinc-100 mb-8"></div>
-              
+
               <div className="space-y-6 mb-12">
                 <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-zinc-900">Description</h3>
                 <p className="text-zinc-600 leading-relaxed font-light whitespace-pre-wrap">
-                  {product.description || "No description provided for this elegant piece."}
+                  {product.description || 'No description provided for this elegant piece.'}
                 </p>
               </div>
 
@@ -139,9 +167,10 @@ const ProductDetail = ({ id }: { id: string }) => {
                   <ShoppingBag size={18} />
                   Add to Cart
                 </button>
-                <a 
-                  href={`https://wa.me/message/YKD3NJM3DCCXF1?text=I'm interested in ${product.name} (${priceStr})`}
+                <a
+                  href={`https://wa.me/message/YKD3NJM3DCCXF1?text=I'm interested in ${encodeURIComponent(product.name)} (${priceStr})`}
                   target="_blank"
+                  rel="noreferrer"
                   className="w-full border border-zinc-200 text-black py-5 px-8 flex items-center justify-center gap-3 hover:border-black transition-colors tracking-widest uppercase text-sm font-medium"
                 >
                   Order via WhatsApp
@@ -150,12 +179,12 @@ const ProductDetail = ({ id }: { id: string }) => {
 
               <div className="mt-16 grid grid-cols-2 gap-8 border-t border-zinc-100 pt-8">
                 <div>
-                    <h4 className="text-[10px] uppercase tracking-widest font-bold mb-2">Delivery</h4>
-                    <p className="text-xs text-zinc-400">Standard shipping 3-5 business days across Bangladesh.</p>
+                  <h4 className="text-[10px] uppercase tracking-widest font-bold mb-2">Delivery</h4>
+                  <p className="text-xs text-zinc-400">Standard shipping 3-5 business days across Bangladesh.</p>
                 </div>
                 <div>
-                    <h4 className="text-[10px] uppercase tracking-widest font-bold mb-2">Details</h4>
-                    <p className="text-xs text-zinc-400">Crafted with the finest fabrics for lasting elegance.</p>
+                  <h4 className="text-[10px] uppercase tracking-widest font-bold mb-2">Details</h4>
+                  <p className="text-xs text-zinc-400">Crafted with the finest fabrics for lasting elegance.</p>
                 </div>
               </div>
             </motion.div>

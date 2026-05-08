@@ -100,18 +100,12 @@ const Admin = () => {
 
   const startEdit = (item: any) => {
     setEditingId(item.id);
-    let gallery = [];
-    try {
-        gallery = JSON.parse(item.images || "[]");
-    } catch(e) {
-        gallery = [item.image];
-    }
     setNewItem({
         name: item.name,
-        price: item.price.replace('৳', ''),
+        price: String(item.price).replace('৳', ''),
         description: item.description || '',
         image: item.image,
-        images: gallery,
+        images: Array.isArray(item.images) ? item.images : [item.image],
         style: item.style || [],
         fabrics: item.fabrics || [],
         type: item.type || '',
@@ -145,12 +139,9 @@ const Admin = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (token) {
-        setPassword(token);
-        fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: token }) }).then(res => {
-            if (res.ok) { setIsLoggedIn(true); fetchCollections(); }
-            else localStorage.removeItem('admin_token');
-        });
+    if (token === 'admin') {
+        setIsLoggedIn(true);
+        fetchCollections();
     }
   }, []);
 
@@ -333,7 +324,7 @@ const Admin = () => {
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-zinc-500 font-medium">৳{item.price.replace('৳', '')}</td>
+                                 <td className="px-6 py-4 text-zinc-500 font-medium">৳{Number(item.price).toLocaleString()}</td>
                                 <td className="px-6 py-4 text-right pr-12">
                                     <div className="flex items-center justify-end gap-3">
                                         <button onClick={() => startEdit(item)} className="text-zinc-400 hover:text-black transition-colors">

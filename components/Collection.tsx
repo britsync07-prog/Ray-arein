@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Filter as FilterIcon, ChevronDown } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../mockData';
-import { FilterState, SortOption } from '../types';
+import { Product, FilterState, SortOption } from '../types';
 import { filterProducts, sortProducts } from '../filterUtils';
 import FilterSidebar from './Filter/FilterSidebar';
 import ActiveFilterTags from './Filter/ActiveFilterTags';

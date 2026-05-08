@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Filter as FilterIcon, ChevronDown } from 'lucide-react';
+import { Filter as FilterIcon } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../mockData';
 import { Product, FilterState, SortOption } from '../types';
 import { filterProducts, sortProducts } from '../filterUtils';
@@ -8,6 +8,19 @@ import FilterSidebar from './Filter/FilterSidebar';
 import ActiveFilterTags from './Filter/ActiveFilterTags';
 import SortDropdown from './Filter/SortDropdown';
 import MobileFilterDrawer from './Filter/MobileFilterDrawer';
+
+// Safe helpers — never crash even if DB returns price as string or fabrics as null
+const formatPrice = (price: any): string => {
+  if (typeof price === 'string' && price.includes('৳')) return price;
+  const num = Number(price);
+  return isNaN(num) ? String(price) : `৳${num.toLocaleString()}`;
+};
+
+const formatFabrics = (fabrics: any): string => {
+  if (Array.isArray(fabrics) && fabrics.length > 0) return fabrics.join(', ');
+  if (typeof fabrics === 'string' && fabrics) return fabrics;
+  return '';
+};
 
 const Collection = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,12 +38,11 @@ const Collection = () => {
     fetch('/api/collections')
       .then(res => res.json())
       .then(data => {
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : MOCK_PRODUCTS);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("Failed to fetch collections", err);
-        // Fallback to mock data if API fails to keep UI alive during transitions
+      .catch(() => {
+        // Fallback to local mock data if API unavailable
         setProducts(MOCK_PRODUCTS);
         setLoading(false);
       });
@@ -47,20 +59,23 @@ const Collection = () => {
   };
 
   const handleRemoveFilter = (category: keyof FilterState, value: string) => {
-    setFilters((prev) => ({
+    setFilters(prev => ({
       ...prev,
-      [category]: prev[category].filter((v) => v !== value),
+      [category]: prev[category].filter(v => v !== value),
     }));
   };
 
   const clearAllFilters = () => {
-    setFilters({
-      style: [],
-      fabrics: [],
-      type: [],
-      stitchType: [],
-    });
+    setFilters({ style: [], fabrics: [], type: [], stitchType: [] });
   };
+
+  if (loading) {
+    return (
+      <section id="collection" className="py-24 px-4 text-center">
+        <div className="animate-pulse font-serif text-xl text-zinc-300">Loading Collection...</div>
+      </section>
+    );
+  }
 
   return (
     <section id="collection" className="py-24 px-4 sm:px-6 lg:px-8 max-w-[1440px] mx-auto">
@@ -86,12 +101,12 @@ const Collection = () => {
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <div className="flex-grow">
           {/* Controls Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 pb-6 border-b border-zinc-100">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setIsMobileFilterOpen(true)}
                 className="lg:hidden flex items-center gap-2 px-4 py-2 border border-zinc-200 text-sm font-medium hover:bg-zinc-50 transition-colors"
               >
@@ -102,15 +117,14 @@ const Collection = () => {
                 {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
               </div>
             </div>
-            
             <SortDropdown sortOption={sortOption} setSortOption={setSortOption} />
           </div>
 
-          {/* Active Tags */}
-          <ActiveFilterTags 
-            filters={filters} 
-            onRemove={handleRemoveFilter} 
-            onClearAll={clearAllFilters} 
+          {/* Active Filter Tags */}
+          <ActiveFilterTags
+            filters={filters}
+            onRemove={handleRemoveFilter}
+            onClearAll={clearAllFilters}
           />
 
           {/* Product Grid */}
@@ -129,8 +143,8 @@ const Collection = () => {
                     onClick={() => navigateToProduct(product.id)}
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100 mb-6">
-                      <img 
-                        src={product.image} 
+                      <img
+                        src={product.image}
                         alt={product.name}
                         loading="lazy"
                         className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
@@ -145,11 +159,11 @@ const Collection = () => {
                       <div className="flex justify-between items-start gap-4">
                         <h3 className="font-serif text-lg text-zinc-900 leading-tight">{product.name}</h3>
                         <p className="text-zinc-900 font-medium whitespace-nowrap">
-                          ৳{product.price.toLocaleString()}
+                          {formatPrice(product.price)}
                         </p>
                       </div>
                       <p className="text-zinc-500 text-xs tracking-wider uppercase">
-                        {product.fabrics.join(', ')} • {product.type}
+                        {formatFabrics(product.fabrics)}{product.type ? ` • ${product.type}` : ''}
                       </p>
                     </div>
                   </motion.div>
@@ -157,7 +171,7 @@ const Collection = () => {
               </AnimatePresence>
             </div>
           ) : (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="py-32 text-center"
@@ -167,7 +181,7 @@ const Collection = () => {
               </div>
               <h3 className="text-xl font-serif mb-2">No products found</h3>
               <p className="text-zinc-500 text-sm mb-8">Try adjusting your filters to find what you're looking for.</p>
-              <button 
+              <button
                 onClick={clearAllFilters}
                 className="px-8 py-3 bg-black text-white text-sm uppercase tracking-widest hover:bg-zinc-800 transition-colors"
               >
@@ -179,11 +193,11 @@ const Collection = () => {
       </div>
 
       {/* Mobile Filter Drawer */}
-      <MobileFilterDrawer 
-        isOpen={isMobileFilterOpen} 
-        onClose={() => setIsMobileFilterOpen(false)} 
-        filters={filters} 
-        setFilters={setFilters} 
+      <MobileFilterDrawer
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        filters={filters}
+        setFilters={setFilters}
       />
     </section>
   );

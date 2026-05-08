@@ -25,77 +25,82 @@ const Admin = () => {
 
   const [uploading, setUploading] = useState(false);
 
-  // Persistence logic for frontend-only
-  const getStoredProducts = () => {
-    const stored = localStorage.getItem('ray_arein_products');
-    if (stored) return JSON.parse(stored);
-    return MOCK_PRODUCTS;
-  };
-
-  const saveToStorage = (products: any[]) => {
-    localStorage.setItem('ray_arein_products', JSON.stringify(products));
-    setCollections(products);
-    // Dispatch event so other components (like Collection) can update if they use same storage
-    window.dispatchEvent(new Event('productsUpdated'));
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    // Mock upload
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const url = reader.result as string;
-      setNewItem(prev => ({ 
-          ...prev, 
-          images: [...prev.images, url],
-          image: prev.image || url
-      }));
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type,
+          'X-Filename': encodeURIComponent(file.name)
+        },
+        body: file 
+      });
+      
+      const data = await res.json();
+      if (data.url) {
+        setNewItem(prev => ({ 
+            ...prev, 
+            images: [...prev.images, data.url],
+            image: prev.image || data.url
+        }));
+      }
+    } catch (err: any) {
+      alert(`Upload failed: ${err.message}`);
+    } finally {
       setUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const checkAuth = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
-    // Simple mock auth
-    setTimeout(() => {
-      if (password === 'admin' || password === localStorage.getItem('admin_token')) {
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
         setIsLoggedIn(true);
         localStorage.setItem('admin_token', password);
         fetchCollections();
-      } else setError('Invalid password (try "admin")');
-      setLoading(false);
-    }, 500);
+      } else setError('Invalid password');
+    } catch (err) { setError('Connection failed'); }
+    finally { setLoading(false); }
   };
 
-  const fetchCollections = () => {
-    setCollections(getStoredProducts());
+  const fetchCollections = async () => {
+    try {
+      const res = await fetch('/api/collections');
+      const data = await res.json();
+      setCollections(data);
+    } catch (err) { console.error(err); }
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
+  const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.image) return alert("Please upload at least one image.");
+    const token = localStorage.getItem('admin_token');
     
-    const products = getStoredProducts();
-    if (editingId) {
-      const updated = products.map((p: any) => p.id === editingId ? { ...newItem, id: editingId, price: Number(newItem.price), createdAt: p.createdAt || new Date().toISOString() } : p);
-      saveToStorage(updated);
-    } else {
-      const created: any = {
-        ...newItem,
-        id: Math.random().toString(36).substr(2, 9),
-        price: Number(newItem.price),
-        createdAt: new Date().toISOString()
-      };
-      saveToStorage([...products, created]);
-    }
+    const method = editingId ? 'PUT' : 'POST';
+    const url = editingId ? `/api/collections?id=${editingId}` : '/api/collections';
 
-    setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
-    setEditingId(null);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
+        body: JSON.stringify(newItem)
+      });
+      if (res.ok) {
+        setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
+        setEditingId(null);
+        fetchCollections();
+      }
+    } catch (err) { console.error(err); }
   };
 
   const startEdit = (item: any) => {
@@ -119,11 +124,16 @@ const Admin = () => {
     setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
+    const token = localStorage.getItem('admin_token');
     if (!confirm('Are you sure?')) return;
-    const products = getStoredProducts();
-    const updated = products.filter((p: any) => p.id !== id);
-    saveToStorage(updated);
+    try {
+      const res = await fetch(`/api/collections?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': token || '' }
+      });
+      if (res.ok) fetchCollections();
+    } catch (err) { console.error(err); }
   };
 
   const removeImage = (urlToRemove: string) => {
@@ -139,9 +149,22 @@ const Admin = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (token === 'admin') {
-        setIsLoggedIn(true);
-        fetchCollections();
+    if (token) {
+        setPassword(token);
+        fetch('/api/auth', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ password: token }) 
+        }).then(res => {
+            if (res.ok) { 
+                setIsLoggedIn(true); 
+                fetchCollections(); 
+            } else {
+                localStorage.removeItem('admin_token');
+            }
+        }).catch(() => {
+            localStorage.removeItem('admin_token');
+        });
     }
   }, []);
 
@@ -324,7 +347,9 @@ const Admin = () => {
                                         </div>
                                     </div>
                                 </td>
-                                 <td className="px-6 py-4 text-zinc-500 font-medium">৳{Number(item.price).toLocaleString()}</td>
+                                 <td className="px-6 py-4 text-zinc-500 font-medium">
+                                    {String(item.price).includes('৳') ? item.price : `৳${Number(item.price).toLocaleString()}`}
+                                 </td>
                                 <td className="px-6 py-4 text-right pr-12">
                                     <div className="flex items-center justify-end gap-3">
                                         <button onClick={() => startEdit(item)} className="text-zinc-400 hover:text-black transition-colors">

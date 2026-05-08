@@ -12,16 +12,33 @@ const ProductDetail = ({ id }: { id: string }) => {
   const [images, setImages] = useState<string[]>([]);
 
   useEffect(() => {
-    const foundProduct = MOCK_PRODUCTS.find(p => p.id === id);
-    if (foundProduct) {
-      setProduct(foundProduct);
-      setActiveImage(foundProduct.image);
-      setImages(foundProduct.images || [foundProduct.image]);
-      setLoading(false);
-      window.scrollTo(0, 0);
-    } else {
-      setLoading(false);
-    }
+    setLoading(true);
+    fetch(`/api/collections?id=${id}`)
+      .then(res => res.json())
+      .then(data => {
+        setProduct(data);
+        setActiveImage(data.image);
+        try {
+            // Handle both JSON string and already parsed array
+            const gallery = typeof data.images === 'string' ? JSON.parse(data.images) : data.images;
+            setImages(Array.isArray(gallery) ? gallery : [data.image]);
+        } catch(e) {
+            setImages([data.image]);
+        }
+        setLoading(false);
+        window.scrollTo(0, 0);
+      })
+      .catch(err => {
+        console.error(err);
+        // Fallback to mock data for demo consistency
+        const found = MOCK_PRODUCTS.find(p => p.id === id);
+        if (found) {
+            setProduct(found);
+            setActiveImage(found.image);
+            setImages(found.images || [found.image]);
+        }
+        setLoading(false);
+      });
   }, [id]);
 
   if (loading) return (

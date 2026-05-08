@@ -10,14 +10,8 @@ import SortDropdown from './Filter/SortDropdown';
 import MobileFilterDrawer from './Filter/MobileFilterDrawer';
 
 const Collection = () => {
-  // Persistence logic for frontend-only
-  const getStoredProducts = () => {
-    const stored = localStorage.getItem('ray_arein_products');
-    if (stored) return JSON.parse(stored);
-    return MOCK_PRODUCTS;
-  };
-
-  const [products, setProducts] = useState<Product[]>(getStoredProducts());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
     style: [],
     fabrics: [],
@@ -27,13 +21,19 @@ const Collection = () => {
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  // Sync with Admin changes
   useEffect(() => {
-    const handleUpdate = () => {
-      setProducts(getStoredProducts());
-    };
-    window.addEventListener('productsUpdated', handleUpdate);
-    return () => window.removeEventListener('productsUpdated', handleUpdate);
+    fetch('/api/collections')
+      .then(res => res.json())
+      .then(data => {
+        setProducts(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch collections", err);
+        // Fallback to mock data if API fails to keep UI alive during transitions
+        setProducts(MOCK_PRODUCTS);
+        setLoading(false);
+      });
   }, []);
 
   const filteredProducts = useMemo(() => {

@@ -1,6 +1,17 @@
 import { Product, FilterState, SortOption } from './types';
 
-// Safe helpers so sorting never crashes even if price is a DB string
+// Parse a field that may be a JS array OR a JSON-encoded string from the DB
+// e.g. ["Chiffon"] or '["Chiffon"]' or "Chiffon" — all handled
+const toArray = (value: any): string[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim().startsWith('[')) {
+    try { return JSON.parse(value); } catch { /* fall through */ }
+  }
+  if (typeof value === 'string' && value.trim()) return [value];
+  return [];
+};
+
+// Parse price safely — strip currency symbols and commas
 const toNumber = (price: any): number => {
   if (typeof price === 'number') return price;
   const cleaned = String(price).replace(/[৳,\s]/g, '');
@@ -9,23 +20,28 @@ const toNumber = (price: any): number => {
 
 export const filterProducts = (products: Product[], filters: FilterState): Product[] => {
   return products.filter((product) => {
+    const productStyle    = toArray(product.style);
+    const productFabrics  = toArray(product.fabrics);
+    const productType     = String(product.type || '').trim();
+    const productStitch   = String(product.stitchType || '').trim();
+
     const matchesStyle =
       filters.style.length === 0 ||
-      filters.style.some(s => Array.isArray(product.style) && product.style.includes(s));
+      filters.style.some(s => productStyle.includes(s));
 
     const matchesFabrics =
       filters.fabrics.length === 0 ||
-      filters.fabrics.some(f => Array.isArray(product.fabrics) && product.fabrics.includes(f));
+      filters.fabrics.some(f => productFabrics.includes(f));
 
     const matchesType =
       filters.type.length === 0 ||
-      filters.type.includes(product.type || '');
+      filters.type.includes(productType);
 
     const matchesStitchType =
       filters.stitchType.length === 0 ||
-      filters.stitchType.includes(product.stitchType || '');
+      filters.stitchType.includes(productStitch);
 
-    // AND logic across categories
+    // AND logic across categories, OR within each category
     return matchesStyle && matchesFabrics && matchesType && matchesStitchType;
   });
 };

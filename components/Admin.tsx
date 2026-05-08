@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Trash2, Plus, LogOut, Loader2, CheckCircle2, Edit3, XCircle } from 'lucide-react';
+import { MOCK_PRODUCTS } from '../mockData';
 
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -8,7 +9,7 @@ const Admin = () => {
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   const [newItem, setNewItem] = useState({
     name: '',
@@ -24,80 +25,77 @@ const Admin = () => {
 
   const [uploading, setUploading] = useState(false);
 
+  // Persistence logic for frontend-only
+  const getStoredProducts = () => {
+    const stored = localStorage.getItem('ray_arein_products');
+    if (stored) return JSON.parse(stored);
+    return MOCK_PRODUCTS;
+  };
+
+  const saveToStorage = (products: any[]) => {
+    localStorage.setItem('ray_arein_products', JSON.stringify(products));
+    setCollections(products);
+    // Dispatch event so other components (like Collection) can update if they use same storage
+    window.dispatchEvent(new Event('productsUpdated'));
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': file.type,
-          'X-Filename': encodeURIComponent(file.name)
-        },
-        body: file 
-      });
-      
-      const data = await res.json();
-      if (data.url) {
-        setNewItem(prev => ({ 
-            ...prev, 
-            images: [...prev.images, data.url],
-            image: prev.image || data.url
-        }));
-      }
-    } catch (err: any) {
-      alert(`Upload failed: ${err.message}`);
-    } finally {
+    // Mock upload
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const url = reader.result as string;
+      setNewItem(prev => ({ 
+          ...prev, 
+          images: [...prev.images, url],
+          image: prev.image || url
+      }));
       setUploading(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const checkAuth = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      if (res.ok) {
+    // Simple mock auth
+    setTimeout(() => {
+      if (password === 'admin' || password === localStorage.getItem('admin_token')) {
         setIsLoggedIn(true);
         localStorage.setItem('admin_token', password);
         fetchCollections();
-      } else setError('Invalid password');
-    } catch (err) { setError('Connection failed'); }
-    finally { setLoading(false); }
+      } else setError('Invalid password (try "admin")');
+      setLoading(false);
+    }, 500);
   };
 
-  const fetchCollections = async () => {
-    const res = await fetch('/api/collections');
-    const data = await res.json();
-    setCollections(data);
+  const fetchCollections = () => {
+    setCollections(getStoredProducts());
   };
 
-  const handleSaveItem = async (e: React.FormEvent) => {
+  const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.image) return alert("Please upload at least one image.");
-    const token = localStorage.getItem('admin_token');
     
-    const method = editingId ? 'PUT' : 'POST';
-    const url = editingId ? `/api/collections?id=${editingId}` : '/api/collections';
+    const products = getStoredProducts();
+    if (editingId) {
+      const updated = products.map((p: any) => p.id === editingId ? { ...newItem, id: editingId, price: Number(newItem.price), createdAt: p.createdAt || new Date().toISOString() } : p);
+      saveToStorage(updated);
+    } else {
+      const created: any = {
+        ...newItem,
+        id: Math.random().toString(36).substr(2, 9),
+        price: Number(newItem.price),
+        createdAt: new Date().toISOString()
+      };
+      saveToStorage([...products, created]);
+    }
 
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
-        body: JSON.stringify(newItem)
-      });
-      if (res.ok) {
-        setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
-        setEditingId(null);
-        fetchCollections();
-      }
-    } catch (err) { console.error(err); }
+    setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
+    setEditingId(null);
   };
 
   const startEdit = (item: any) => {
@@ -127,16 +125,11 @@ const Admin = () => {
     setNewItem({ name: '', price: '', description: '', image: '', images: [], style: [], fabrics: [], type: '', stitchType: '' });
   };
 
-  const handleDeleteItem = async (id: number) => {
-    const token = localStorage.getItem('admin_token');
+  const handleDeleteItem = (id: string) => {
     if (!confirm('Are you sure?')) return;
-    try {
-      const res = await fetch(`/api/collections?id=${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': token || '' }
-      });
-      if (res.ok) fetchCollections();
-    } catch (err) { console.error(err); }
+    const products = getStoredProducts();
+    const updated = products.filter((p: any) => p.id !== id);
+    saveToStorage(updated);
   };
 
   const removeImage = (urlToRemove: string) => {

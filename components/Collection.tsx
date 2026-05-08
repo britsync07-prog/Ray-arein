@@ -10,6 +10,14 @@ import SortDropdown from './Filter/SortDropdown';
 import MobileFilterDrawer from './Filter/MobileFilterDrawer';
 
 const Collection = () => {
+  // Persistence logic for frontend-only
+  const getStoredProducts = () => {
+    const stored = localStorage.getItem('ray_arein_products');
+    if (stored) return JSON.parse(stored);
+    return MOCK_PRODUCTS;
+  };
+
+  const [products, setProducts] = useState<Product[]>(getStoredProducts());
   const [filters, setFilters] = useState<FilterState>({
     style: [],
     fabrics: [],
@@ -19,10 +27,19 @@ const Collection = () => {
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
+  // Sync with Admin changes
+  useEffect(() => {
+    const handleUpdate = () => {
+      setProducts(getStoredProducts());
+    };
+    window.addEventListener('productsUpdated', handleUpdate);
+    return () => window.removeEventListener('productsUpdated', handleUpdate);
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    const filtered = filterProducts(MOCK_PRODUCTS, filters);
+    const filtered = filterProducts(products, filters);
     return sortProducts(filtered, sortOption);
-  }, [filters, sortOption]);
+  }, [products, filters, sortOption]);
 
   const navigateToProduct = (id: string) => {
     window.history.pushState({}, '', `/product/${id}`);

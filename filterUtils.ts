@@ -5,22 +5,22 @@ export const filterProducts = (products: Product[], filters: FilterState): Produ
     // Style filter (OR logic within category)
     const matchesStyle =
       filters.style.length === 0 ||
-      filters.style.some((s) => product.style.includes(s));
+      filters.style.some((s) => product.style?.includes(s));
 
     // Fabrics filter (OR logic within category)
     const matchesFabrics =
       filters.fabrics.length === 0 ||
-      filters.fabrics.some((f) => product.fabrics.includes(f));
+      filters.fabrics.some((f) => product.fabrics?.includes(f));
 
     // Type filter (OR logic within category)
     const matchesType =
       filters.type.length === 0 ||
-      filters.type.includes(product.type);
+      filters.type.includes(product.type || '');
 
     // Stitch Type filter (OR logic within category)
     const matchesStitchType =
       filters.stitchType.length === 0 ||
-      filters.stitchType.includes(product.stitchType);
+      filters.stitchType.includes(product.stitchType || '');
 
     // AND logic across categories
     return matchesStyle && matchesFabrics && matchesType && matchesStitchType;

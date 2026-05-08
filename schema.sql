@@ -5,5 +5,9 @@ CREATE TABLE IF NOT EXISTS collections (
   description TEXT,
   image TEXT NOT NULL,
   images TEXT,
+  style TEXT DEFAULT '[]',
+  fabrics TEXT DEFAULT '[]',
+  type TEXT DEFAULT '',
+  stitchType TEXT DEFAULT '',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
